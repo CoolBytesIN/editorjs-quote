@@ -1,29 +1,56 @@
-.cb-delimiter {
-	line-height: 1.6em;
-	width: 100%;
-	text-align: center;
-	color: black;
+.ce-quote-wrapper {
+	font-size: 70px;
+	height: 50px;
+	color: #6c7381;
 }
 
-/* Delimiter styles */
-.cb-delimiter-star span {
-	font-size: 30px;
-	line-height: 65px;
-	display: inline-block;
-	height: 30px;
-	letter-spacing: 0.2em;
-	font-weight: 900;
+.ce-quote {
+	outline: none;
+	word-wrap: anywhere;
+	color: #767c89;
 }
-.cb-delimiter-dash span {
-	margin: 10px;
-	display: inline-block;
-	height: 30px;
-	letter-spacing: 0.6em;
-	font-weight: 900;
+
+.ce-quote-block {
+	font-size: 1.1em;
+	margin: 0px 22px;
+	word-spacing: 1;
+	line-height: 1.25;
 }
-.cb-delimiter-line hr {
-	font-size: 48px;
-	border-style: solid;
-	border-color: black;
-	border-radius: 3px;
+
+.ce-quote-simple {
+  font-size: 1em;
+	margin: 5px 20px;
+  padding: 5px 10px;
+  border-left: 3.5px solid #6c7381;
+}
+
+.ce-quote[contentEditable='true'][data-placeholder]::before {
+	position: absolute;
+	content: attr(data-placeholder);
+	color: #707684;
+	font-weight: normal;
+	display: none;
+	cursor: text;
+}
+
+.ce-quote[contentEditable='true'][data-placeholder]:empty::before {
+	display: block;
+}
+
+.ce-quote[contentEditable='true'][data-placeholder]:empty:focus::before {
+	display: none;
+}
+
+/* Alignment*/
+.ce-quote-align-left {
+	text-align: left;
+}
+.ce-quote-align-center {
+	text-align: center;
+}
+.ce-quote-align-right {
+	text-align: right;
+}
+.ce-quote-align-justify {
+	text-align: justify;
 }

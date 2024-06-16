@@ -1,21 +1,23 @@
 require('./index.css');
 
-import { IconDelimiter } from '@codexteam/icons';
+const quoteIcon = require('./icons/quote.js');
+const simplequoteIcon = require('./icons/simplequote.js');
+const getAlignmentIcon = require('./icons/alignment.js');
 
 /**
- * Delimiter plugin for Editor.js
+ * Quote plugin for Editor.js
  * Supported config:
- *     * defaultStyle {string} (Default: 'star')
- *     * styles {string[]} (Default: Delimiter.DELIMITER_STYLES)
- *     * defaultLineWidth {number} (Default: 25)
- *     * lineWidths {number[]} (Default: Delimiter.LINE_WIDTHS)
- *     * defaultLineThickness {string} (Default: '1px')
- *     * lineThickness {string[]} (Default: Delimiter.LINE_THICKNESS)
+ *     * placeholder {string} (Default: '')
+ *     * quoteStyles {string[]} (Default: Quote.QUOTE_STYLES)
+ *     * defaultQuoteStyle {string} (Default: 'simple')
+ *     * alignTypes {string[]} (Default: Quote.ALIGN_TYPES)
+ *     * defaultAlignType {string} (Default: 'left')
  *
- * @class Delimiter
- * @typedef {Delimiter}
+ * @export
+ * @class Quote
+ * @typedef {Quote}
  */
-export default class Delimiter {
+export default class Quote {
   /**
    * Editor.js Toolbox settings
    *
@@ -25,7 +27,7 @@ export default class Delimiter {
    */
   static get toolbox() {
     return {
-      icon: IconDelimiter, title: 'Delimiter',
+      icon: quoteIcon, title: 'Quote',
     };
   }
 
@@ -41,69 +43,47 @@ export default class Delimiter {
   }
 
   /**
-   * All supported delimiter styles
+   * All supported quote styles
    *
    * @static
    * @readonly
    * @type {string[]}
    */
-  static get DELIMITER_STYLES() {
-    return ['star', 'dash', 'line'];
+  static get QUOTE_STYLES() {
+    return ['simple', 'block'];
   }
 
   /**
-   * Default delimiter style
+   * Default quote style
    *
    * @static
    * @readonly
    * @type {string}
    */
-  static get DEFAULT_DELIMITER_STYLE() {
-    return 'star';
+  static get DEFAULT_QUOTE_STYLE() {
+    return 'simple';
   }
 
   /**
-   * All supported widths for delimiter line style
-   *
-   * @static
-   * @readonly
-   * @type {number[]}
-   */
-  static get LINE_WIDTHS() {
-    return [8, 15, 25, 35, 50, 60, 100];
-  }
-
-  /**
-   * Default width for delimiter line style
-   *
-   * @static
-   * @readonly
-   * @type {number}
-   */
-  static get DEFAULT_LINE_WIDTH() {
-    return 25;
-  }
-
-  /**
-   * All supported thickness options for delimiter line style
+   * All supported alignment types
    *
    * @static
    * @readonly
    * @type {string[]}
    */
-  static get LINE_THICKNESS() {
-    return ['0.5px', '1px', '1.5px', '2px', '2.5px', '3px'];
+  static get ALIGN_TYPES() {
+    return ['left', 'center', 'right', 'justify'];
   }
 
   /**
-   * Default thickness for delimiter line style
+   * Default alignment type
    *
    * @static
    * @readonly
    * @type {string}
    */
-  static get DEFAULT_LINE_THICKNESS() {
-    return '1px';
+  static get DEFAULT_ALIGN_TYPE() {
+    return 'left';
   }
 
   /**
@@ -111,143 +91,126 @@ export default class Delimiter {
    *
    * @static
    * @readonly
-   * @type {{ style: boolean; lineWidth: boolean; lineThickness: boolean; }}
+   * @type {{ text: {}; style: boolean; align: boolean; }}
    */
   static get sanitize() {
     return {
+      text: {},
       style: false,
-      lineWidth: false,
-      lineThickness: false,
+      align: false,
     };
   }
 
   /**
-   * Creates an instance of Delimiter.
+   * Editor.js config to convert one block to another
+   *
+   * @static
+   * @readonly
+   * @type {{ export: string; import: string; }}
+   */
+  static get conversionConfig() {
+    return {
+      export: 'text', // this property of tool data will be used as string to pass to other tool
+      import: 'text', // to this property imported string will be passed
+    };
+  }
+
+  /**
+   * Creates an instance of Quote.
    *
    * @constructor
-   * @param {{ api: {}; config: {}; data: {}; }} props
+   * @param {{ api: {}; readOnly: boolean; config: {}; data: {}; }} props
    */
   constructor({
-    api, config, data,
+    api, readOnly, config, data,
   }) {
     this._api = api;
+    this._readOnly = readOnly;
     this._config = config || {};
     this._data = this._normalizeData(data);
     this._CSS = {
       block: this._api.styles.block,
-      wrapper: 'cb-delimiter',
-      wrapperForStyle: (style) => `cb-delimiter-${style}`,
+      wrapper: 'ce-quote-wrapper',
+      quote: 'ce-quote',
+      wrapperForStyle: (quoteStyle) => `ce-quote-${quoteStyle}`,
+      wrapperForAlignment: (alignType) => `ce-quote-align-${alignType}`,
     };
     this._element = this._getElement();
   }
 
-  /**
-   * All available delimiter styles
-   * - Finds intersection between supported and user selected delimiter styles
+    /**
+   * All available quote styles
+   * - Finds intersection between supported and user selected quote styles
    *
    * @readonly
    * @type {string[]}
    */
-  get availableDelimiterStyles() {
-    return this._config.styles ? Delimiter.DELIMITER_STYLES.filter(
-      (style) => this._config.styles.includes(style),
-    ) : Delimiter.DELIMITER_STYLES;
+    get availableQuoteStyles() {
+      return this._config.quoteStyles ? Quote.QUOTE_STYLES.filter(
+        (style) => this._config.quoteStyles.includes(style),
+      ) : Quote.QUOTE_STYLES;
+    }
+  
+    /**
+     * User's default quote style
+     * - Finds union of user choice and the actual default
+     *
+     * @readonly
+     * @type {string}
+     */
+    get userDefaultQuoteStyle() {
+      if (this._config.defaultQuoteStyle) {
+        const userSpecified = this.availableQuoteStyles.find(
+          (align) => align === this._config.defaultQuoteStyle,
+        );
+        if (userSpecified) {
+          return userSpecified;
+        }
+        // eslint-disable-next-line no-console
+        console.warn('(ง\'̀-\'́)ง Quote Tool: the default quote style specified is invalid');
+      }
+      return Quote.DEFAULT_QUOTE_STYLE;
+    }
+
+  /**
+   * All available alignment types
+   * - Finds intersection between supported and user selected alignment types
+   *
+   * @readonly
+   * @type {string[]}
+   */
+  get availableAlignTypes() {
+    return this._config.alignTypes ? Quote.ALIGN_TYPES.filter(
+      (align) => this._config.alignTypes.includes(align),
+    ) : Quote.ALIGN_TYPES;
   }
 
   /**
-   * User's default delimiter style
+   * User's default alignment type
    * - Finds union of user choice and the actual default
    *
    * @readonly
    * @type {string}
    */
-  get userDefaultDelimiterStyle() {
-    if (this._config.defaultStyle) {
-      const userSpecified = this.availableDelimiterStyles.find(
-        (style) => style === this._config.defaultStyle,
+  get userDefaultAlignType() {
+    if (this._config.defaultAlignType) {
+      const userSpecified = this.availableAlignTypes.find(
+        (align) => align === this._config.defaultAlignType,
       );
       if (userSpecified) {
         return userSpecified;
       }
       // eslint-disable-next-line no-console
-      console.warn('(ง\'̀-\'́)ง Delimiter Tool: the default style specified is invalid');
+      console.warn('(ง\'̀-\'́)ง Quote Tool: the default align type specified is invalid');
     }
-    return Delimiter.DEFAULT_DELIMITER_STYLE;
-  }
-
-  /**
-   * All available widths for delimiter line style
-   * - Finds all valid user selected line widths (falls back to default when empty)
-   *
-   * @readonly
-   * @type {number[]}
-   */
-  get availableLineWidths() {
-    return this._config.lineWidths ? Delimiter.LINE_WIDTHS.filter(
-      (width) => this._config.lineWidths.includes(width),
-    ) : Delimiter.LINE_WIDTHS;
-  }
-
-  /**
-   * User's default line width
-   * - Finds union of user choice and the actual default
-   *
-   * @readonly
-   * @type {number}
-   */
-  get userDefaultLineWidth() {
-    if (this._config.defaultLineWidth) {
-      const userSpecified = this.availableLineWidths.find(
-        (width) => width === this._config.defaultLineWidth,
-      );
-      if (userSpecified) {
-        return userSpecified;
-      }
-      // eslint-disable-next-line no-console
-      console.warn('(ง\'̀-\'́)ง Delimiter Tool: the default line width specified is invalid');
-    }
-    return Delimiter.DEFAULT_LINE_WIDTH;
-  }
-
-  /**
-   * All available line thickness options
-   * - Finds intersection between supported and user selected line thickness options
-   *
-   * @readonly
-   * @type {string[]}
-   */
-  get availableLineThickness() {
-    return this._config.lineThickness ? Delimiter.LINE_THICKNESS.filter(
-      (thickness) => this._config.lineThickness.includes(thickness),
-    ) : Delimiter.LINE_THICKNESS;
-  }
-
-  /**
-   * User's default line thickness
-   * - Finds union of user choice and the actual default
-   *
-   * @readonly
-   * @type {string}
-   */
-  get userDefaultLineThickness() {
-    if (this._config.defaultLineThickness) {
-      const userSpecified = this.availableLineThickness.find(
-        (thickness) => thickness === this._config.defaultLineThickness,
-      );
-      if (userSpecified) {
-        return userSpecified;
-      }
-      // eslint-disable-next-line no-console
-      console.warn('(ง\'̀-\'́)ง Delimiter Tool: the default line thickness specified is invalid');
-    }
-    return Delimiter.DEFAULT_LINE_THICKNESS;
+    return Quote.DEFAULT_ALIGN_TYPE;
   }
 
   /**
    * To normalize input data
    *
    * @param {*} data
-   * @returns {{ style: string; lineWidth: number; lineThickness: string; }}
+   * @returns {{ text: string; style: string; align: string; }}
    */
   _normalizeData(data) {
     const newData = {};
@@ -255,71 +218,82 @@ export default class Delimiter {
       data = {};
     }
 
-    newData.style = data.style || this.userDefaultDelimiterStyle;
-    newData.lineWidth = parseInt(data.lineWidth, 10) || this.userDefaultLineWidth;
-    newData.lineThickness = data.lineThickness || this.userDefaultLineThickness;
+    newData.text = data.text || '';
+    newData.style = data.style || this.userDefaultQuoteStyle;
+    newData.align = data.align || this.userDefaultAlignType;
     return newData;
   }
 
   /**
-   * Current delimiter style
+   * Current quote style
    *
    * @readonly
    * @type {string}
    */
-  get currentDelimiterStyle() {
-    let delimiterStyle = this.availableDelimiterStyles.find((style) => style === this._data.style);
-    if (!delimiterStyle) {
-      delimiterStyle = this.userDefaultDelimiterStyle;
+  get currentQuoteStyle() {
+    let quoteStyle = this.availableQuoteStyles.find((style) => style === this._data.style);
+    if (!quoteStyle) {
+      quoteStyle = this.userDefaultQuoteStyle;
     }
-    return delimiterStyle;
+    return quoteStyle;
   }
 
   /**
-   * Current width for delimiter line style
-   *
-   * @readonly
-   * @type {number}
-   */
-  get currentLineWidth() {
-    let lineWidth = this.availableLineWidths.find((width) => width === this._data.lineWidth);
-    if (!lineWidth) {
-      lineWidth = this.userDefaultLineWidth;
-    }
-    return lineWidth;
-  }
-
-  /**
-   * Current thickness for delimiter line style
+   * Current alignment type
    *
    * @readonly
    * @type {string}
    */
-  get currentLineThickness() {
-    let lineThickness = this.availableLineThickness.find(
-      (thickness) => thickness === this._data.lineThickness,
+  get currentAlignType() {
+    let alignType = this.availableAlignTypes.find((align) => align === this._data.align);
+    if (!alignType) {
+      alignType = this.userDefaultAlignType;
+    }
+    return alignType;
+  }
+
+  /**
+   * HTML element to represent opening block quote
+   *
+   * @returns {*}
+   */
+  _createOpeningQuote() {
+    const topQuoteDiv = document.createElement('DIV');
+    topQuoteDiv.innerHTML = '“';
+    topQuoteDiv.contentEditable = false;
+    topQuoteDiv.classList.add(this._CSS.wrapper, this._CSS.wrapperForAlignment('left'));
+    return topQuoteDiv;
+  }
+
+  /**
+   * HTML element to represent closing block quote
+   *
+   * @returns {*}
+   */
+  _createClosingQuote() {
+    const bottomQuoteDiv = document.createElement('DIV');
+    bottomQuoteDiv.innerHTML = '”';
+    bottomQuoteDiv.contentEditable = false;
+    bottomQuoteDiv.classList.add(this._CSS.wrapper, this._CSS.wrapperForAlignment('right'));
+    return bottomQuoteDiv;
+  }
+
+  /**
+   * HTML element to represent quote content
+   *
+   * @returns {*}
+   */
+  _createQuoteContent() {
+    const contentDiv = document.createElement('DIV');
+    contentDiv.innerHTML = this._data.text || '';
+    contentDiv.contentEditable = !this._readOnly;
+    contentDiv.classList.add(
+      this._CSS.quote,
+      this._CSS.wrapperForStyle(this.currentQuoteStyle),
+      this._CSS.wrapperForAlignment(this.currentAlignType)
     );
-    if (!lineThickness) {
-      lineThickness = this.userDefaultLineThickness;
-    }
-    return lineThickness;
-  }
-
-  createChildElement() {
-    let child;
-    if (this.currentDelimiterStyle === 'star') {
-      child = document.createElement('span');
-      child.textContent = '***';
-      return child;
-    } if (this.currentDelimiterStyle === 'dash') {
-      child = document.createElement('span');
-      child.textContent = '———';
-      return child;
-    }
-    child = document.createElement('hr');
-    child.style.width = `${this.currentLineWidth}%`;
-    child.style.borderWidth = this.currentLineThickness;
-    return child;
+    contentDiv.dataset.placeholder = this._api.i18n.t(this._config.placeholder || 'Enter quote text');
+    return contentDiv;
   }
 
   /**
@@ -328,83 +302,95 @@ export default class Delimiter {
    * @returns {*}
    */
   _getElement() {
-    const div = document.createElement('DIV');
-    div.classList.add(
-      this._CSS.wrapper,
-      this._CSS.block,
-      this._CSS.wrapperForStyle(this.currentDelimiterStyle),
-    );
-    div.appendChild(this.createChildElement());
-    return div;
-  }
+    const parentDiv = document.createElement('DIV');
+    parentDiv.classList.add(this._CSS.block);
 
-  /**
-   * Callback for Delimiter style change to star
-   */
-  _setStar() {
-    if (this.currentDelimiterStyle !== 'star') {
-      this._data.style = 'star';
-
-      // Replace hr child with span child
-      if (this._element.parentNode) {
-        const newElement = this._getElement();
-        this._element.parentNode.replaceChild(newElement, this._element);
-        this._element = newElement;
-      }
+    if (this.currentQuoteStyle === 'block') {
+      // Opening Quote
+      parentDiv.appendChild(this._createOpeningQuote());
     }
-  }
 
-  /**
-   * Callback for Delimiter style change to dash
-   */
-  _setDash() {
-    if (this.currentDelimiterStyle !== 'dash') {
-      this._data.style = 'dash';
+    // Quote Content
+    parentDiv.appendChild(this._createQuoteContent());
 
-      // Replace hr child with span child
-      if (this._element.parentNode) {
-        const newElement = this._getElement();
-        this._element.parentNode.replaceChild(newElement, this._element);
-        this._element = newElement;
-      }
+    if (this.currentQuoteStyle === 'block') {
+      // Closing Quote
+      parentDiv.appendChild(this._createClosingQuote());
     }
+    return parentDiv;
   }
 
   /**
-   * Callback for Delimiter style change to line or line width change
+   * Function to target the quote content element
    *
-   * @param {number} newWidth
+   * @param {*} element
+   * @returns {*}
    */
-  _setLine(newWidth) {
-    this._data.lineWidth = newWidth;
-
-    if (this.currentDelimiterStyle !== 'line') {
-      this._data.style = 'line';
-
-      // Replace span child with hr child
-      if (this._element.parentNode) {
-        const newElement = this._getElement();
-        this._element.parentNode.replaceChild(newElement, this._element);
-        this._element = newElement;
-      }
-    } else {
-      // Change hr width
-      const hrElement = this._element.querySelector('hr');
-      hrElement.style.width = `${newWidth}%`;
+  _getContentTarget(element) {
+    if (this.currentQuoteStyle === 'block') {
+      return element.children[1]
+    }
+    else {
+      return element.children[0]
     }
   }
 
   /**
-   * Callback for line thickness change
+   * Callback for Alignment block tune setting
    *
-   * @param {string} newThickness
+   * @param {string} newAlign
    */
-  _setLineThickness(newThickness) {
-    this._data.lineThickness = newThickness;
+  _setAlignType(newAlign) {
+    this._data.align = newAlign;
 
-    // Change hr thickness
-    const hrElement = this._element.querySelector('hr');
-    hrElement.style.borderWidth = newThickness;
+    // Quote content element
+    const contentTarget = this._getContentTarget(this._element);
+
+    // Remove old CSS class and add new class
+    Quote.ALIGN_TYPES.forEach((align) => {
+      const alignClass = this._CSS.wrapperForAlignment(align);
+      contentTarget.classList.remove(alignClass);
+      if (newAlign === align) {
+        contentTarget.classList.add(alignClass);
+      }
+    });
+  }
+
+  /**
+   * Replace the current element with a new one
+   */
+  _replaceElement() {
+    if (this._element.parentNode) {
+      const newElement = this._getElement();
+      this._element.parentNode.replaceChild(newElement, this._element);
+      this._element = newElement;
+    }
+  }
+
+  /**
+   * Callback for Quote style change to simple
+   */
+  _setSimpleQuote() {
+    // Capturing current text
+    this._data.text = this._getContentTarget(this._element).innerHTML;
+
+    if (this.currentQuoteStyle !== 'simple') {
+      this._data.style = 'simple';
+      this._replaceElement();
+    }
+  }
+
+  /**
+   * Callback for Quote style change to block
+   */
+  _setBlockQuote() {
+      // Capturing current text
+      this._data.text = this._getContentTarget(this._element).innerHTML;
+
+    if (this.currentQuoteStyle !== 'block') {
+      this._data.style = 'block';
+      this._replaceElement();
+    }
   }
 
   /**
@@ -420,15 +406,45 @@ export default class Delimiter {
    * Editor.js save method to extract block data from the UI
    *
    * @param {*} blockContent
-   * @returns {{ style: string; lineWidth: number; lineThickness: string; }}
+   * @returns {{ text: string }}
    */
-  save() {
+  save(blockContent) {
     return {
-      style: this.currentDelimiterStyle,
-      lineWidth: this.currentLineWidth,
-      lineThickness: this.currentLineThickness,
+      text: this._getContentTarget(blockContent).innerHTML,
+      style: this.currentQuoteStyle,
+      align: this.currentAlignType,
     };
   }
+
+  /**
+   * Editor.js validation (on save) code for this block
+   * - Skips empty blocks
+   *
+   * @param {*} savedData
+   * @returns {boolean}
+   */
+  validate(savedData) {
+    return savedData.text.trim() !== '';
+  }
+
+  /**
+   * Create a Block menu setting
+   *
+   * @param {string} icon
+   * @param {string} label
+   * @param {*} onActivate
+   * @param {boolean} isActive
+   * @param {string} group
+   * @returns {{ icon: string; label: string; onActivate: any; isActive: boolean; closeOnActivate: boolean; toggle: string; }}
+   */
+  _createSetting = (icon, label, onActivate, isActive, group) => ({
+    icon,
+    label,
+    onActivate,
+    isActive,
+    closeOnActivate: true,
+    toggle: group,
+  });
 
   /**
    * Block Tunes Menu items
@@ -436,42 +452,31 @@ export default class Delimiter {
    * @returns {[{*}]}
    */
   renderSettings() {
-    const starStyle = [{
-      icon: IconDelimiter,
-      label: 'Star',
-      onActivate: () => this._setStar(),
-      isActive: this.currentDelimiterStyle === 'star',
+    const starStyle = this._createSetting(
+      simplequoteIcon, 'Simple Quote', () => this._setSimpleQuote(), this.currentQuoteStyle === 'simple', 'simple'
+    );
+    const dashStyle = this._createSetting(
+      quoteIcon, 'Block Quote', () => this._setBlockQuote(), this.currentQuoteStyle === 'block', 'block'
+    );
+    const alignTypes = this.availableAlignTypes.map((align) => ({
+      icon: getAlignmentIcon(align),
+      label: this._api.i18n.t(align.charAt(0).toUpperCase() + align.slice(1)),
+      onActivate: () => this._setAlignType(align),
+      isActive: align === this.currentAlignType,
       closeOnActivate: true,
-      toggle: 'star',
-    }];
-    const dashStyle = [{
-      icon: IconDelimiter,
-      label: 'Dash',
-      onActivate: () => this._setDash(),
-      isActive: this.currentDelimiterStyle === 'dash',
-      closeOnActivate: true,
-      toggle: 'dash',
-    }];
-    const lineWidths = this.availableLineWidths.map((width) => ({
-      icon: IconDelimiter,
-      label: `Line ${width}%`,
-      onActivate: () => this._setLine(width),
-      isActive: this.currentDelimiterStyle === 'line' && width === this.currentLineWidth,
-      closeOnActivate: true,
-      toggle: 'line',
+      toggle: 'align',
     }));
-    let lineThickness = [];
-    if (this.currentDelimiterStyle === 'line') {
-      lineThickness = this.availableLineThickness.map((thickness) => ({
-        icon: IconDelimiter,
-        label: `Thickness ${parseInt(parseFloat(thickness) * 2, 10)}`,
-        onActivate: () => this._setLineThickness(thickness),
-        isActive: thickness === this.currentLineThickness,
-        closeOnActivate: true,
-        toggle: 'thickness',
-      }));
-    }
 
-    return [...starStyle, ...dashStyle, ...lineWidths, ...lineThickness];
+    return [starStyle, dashStyle, ...alignTypes]
+  }
+
+  /**
+   * Editor.js method to merge similar blocks on `Backspace` keypress
+   *
+   * @param {*} data
+   */
+  merge(data) {
+    const contentTarget = this._getContentTarget(this._element);
+    contentTarget.innerHTML = contentTarget.innerHTML + data.text || '';
   }
 }
