@@ -43,6 +43,17 @@ export default class Quote {
   }
 
   /**
+   * Allow to press Enter inside the block tool
+   *
+   * @static
+   * @readonly
+   * @type {boolean}
+   */
+  static get enableLineBreaks() {
+    return true;
+  }
+
+  /**
    * All supported quote styles
    *
    * @static
