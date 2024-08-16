@@ -1,7 +1,7 @@
 {
   "name": "@coolbytes/editorjs-quote",
   "description": "Quote block tool for Editor.js",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": false,
   "homepage": "https://apps.coolbytes.in/editorjs-quote",
   "license": "MIT",

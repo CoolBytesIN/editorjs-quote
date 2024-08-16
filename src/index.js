@@ -304,6 +304,39 @@ export default class Quote {
       this._CSS.wrapperForAlignment(this.currentAlignType)
     );
     contentDiv.dataset.placeholder = this._api.i18n.t(this._config.placeholder || 'Enter quote text');
+
+    // Add event listener for the Backspace key
+    contentDiv.addEventListener('keydown', (event) => {
+      if (event.key === 'Backspace') {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          const startContainer = range.startContainer;
+          const closestDiv = startContainer.nodeType === Node.ELEMENT_NODE
+            ? startContainer.closest('div')
+            : startContainer.parentNode.closest('div');
+
+          if (closestDiv.innerText.trim() === '') {
+            // Move cursor to end of the previous div
+            let previousDiv = closestDiv.previousElementSibling;
+
+            // Ensure we found a previous div
+            if (previousDiv && previousDiv.tagName === 'DIV') {
+              // Create a new range and place it at the end of the previous div
+              const range = document.createRange();
+              const selection = window.getSelection();
+              range.selectNodeContents(previousDiv);
+              range.collapse(false); // Move cursor to the end of the previous div
+              selection.removeAllRanges();
+              selection.addRange(range);
+            }
+
+            event.preventDefault();
+            closestDiv.remove();
+          }
+        }
+      }
+    });
     return contentDiv;
   }
 
